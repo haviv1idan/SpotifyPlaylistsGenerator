@@ -1,7 +1,9 @@
 venv
-users/users_venv/*
+.venv
 
 __pycache__
 */__pycache__
 
 universal_top_spotify_songs.csv
+
+users.json
