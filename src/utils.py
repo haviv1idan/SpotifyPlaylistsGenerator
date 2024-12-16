@@ -1,13 +1,16 @@
+from functools import lru_cache
+
 import pandas as pd
 
-from functools import lru_cache
 
 @lru_cache
 def get_universal_top_spotify_songs() -> pd.DataFrame:
     with open('universal_top_spotify_songs.csv', 'r') as file:
         return pd.read_csv(file)
-    
+
+
 df: pd.DataFrame = get_universal_top_spotify_songs()
+
 
 @lru_cache
 def get_artists() -> list[str]:

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from users_utils import read_users, write_users
 
+
 class User(BaseModel):
     name: str
     password: str
@@ -29,11 +30,13 @@ async def get_user(name: str):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+
 @app.get("/users")
 async def list_users():
     """Get all users."""
     users = read_users()
     return users
+
 
 @app.post("/users/create")
 async def create_user(user: User):
