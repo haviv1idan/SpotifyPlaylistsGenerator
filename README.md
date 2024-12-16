@@ -18,3 +18,19 @@ unzip ~/Downloads/top-spotify-songs-in-73-countries-daily-updated.zip
 ```bash
 cp ~/Downloads/top-spotify-songs-in-73-countries-daily-updated.zip .
 ```
+
+## Install requirements.txt
+```bash
+pip install -r requirements.txt
+```
+
+
+## run streamlit
+```bash
+streamlit run app.py
+```
+
+## run fastapi
+```bash
+fastapi dev users/users_api.py
+```
