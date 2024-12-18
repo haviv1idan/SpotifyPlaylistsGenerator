@@ -1,9 +1,9 @@
-# run mongo docker 
+# run mongo docker
 ```bash
 docker run -d --name mongodb -p 27017:27017 mongo
 ```
 
-# run fastapi 
+# run fastapi
 ## without docker
 ```bash
 fastapi dev user_api.py
@@ -13,6 +13,4 @@ fastapi dev user_api.py
 ```bash
 # build
 docker build -t users_api:latest .
-
-
 ```

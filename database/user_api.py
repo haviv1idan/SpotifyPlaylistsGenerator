@@ -1,6 +1,7 @@
+from db_utils import users_collection
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from db_utils import get_all_users, users_collection
+
 
 class User(BaseModel):
     name: str
@@ -9,9 +10,11 @@ class User(BaseModel):
 
 app = FastAPI()
 
+
 def serialize_user(user):
     user["_id"] = str(user["_id"])
     return user
+
 
 @app.get("/")
 async def read_root():
@@ -39,7 +42,6 @@ async def list_users():
     if not users:
         return []
     return [serialize_user(user) for user in users]
-
 
 
 @app.post("/users/create")

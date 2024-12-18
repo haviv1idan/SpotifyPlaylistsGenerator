@@ -1,8 +1,6 @@
-from functools import lru_cache
-from pymongo.synchronous.mongo_client import MongoClient
-from pymongo.synchronous.database import Database
 from pymongo.synchronous.collection import Collection
-
+from pymongo.synchronous.database import Database
+from pymongo.synchronous.mongo_client import MongoClient
 
 client: MongoClient = MongoClient("mongodb://mongodb:27017/")
 db: Database = client["mydatabase"]
@@ -10,11 +8,13 @@ db: Database = client["mydatabase"]
 users_collection: Collection = db["users"]
 songs_collection: Collection = db["songs"]
 
+
 def insert_user(name, password):
     # Insert a user
     user = {"name": name, "password": password}
     result = users_collection.insert_one(user)
     print(f"User inserted with ID: {result.inserted_id}")
+
 
 def insert_song(name, spotify_id, artists):
     # Insert a song
@@ -22,17 +22,20 @@ def insert_song(name, spotify_id, artists):
     result = songs_collection.insert_one(song)
     print(f"Song inserted with ID: {result.inserted_id}")
 
+
 def get_all_users():
     # Get all users
     users = users_collection.find()
     for user in users:
         print(user)
 
+
 def get_all_songs():
     # Get all songs
     songs = songs_collection.find()
     for song in songs:
         print(song)
+
 
 def update_user_password(name, new_password):
     # Update a user's password
@@ -45,6 +48,7 @@ def update_user_password(name, new_password):
     else:
         print("User not found.")
 
+
 def delete_user(name):
     # Delete a user
     result = users_collection.delete_one({"name": name})
@@ -53,6 +57,7 @@ def delete_user(name):
     else:
         print("User not found.")
 
+
 def delete_song(spotify_id):
     # Delete a song
     result = songs_collection.delete_one({"spotify_id": spotify_id})
@@ -60,4 +65,3 @@ def delete_song(spotify_id):
         print(f"Song with ID {spotify_id} deleted.")
     else:
         print("Song not found.")
-
