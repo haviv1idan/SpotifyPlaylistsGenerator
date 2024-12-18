@@ -4,7 +4,7 @@ from pymongo.synchronous.database import Database
 from pymongo.synchronous.collection import Collection
 
 
-client: MongoClient = MongoClient("mongodb://localhost:27017/")
+client: MongoClient = MongoClient("mongodb://mongodb:27017/")
 db: Database = client["mydatabase"]
 
 users_collection: Collection = db["users"]
