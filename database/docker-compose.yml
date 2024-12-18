@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    networks:
+      - my_network
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  fastapi_app:
+    build: .
+    container_name: users_api
+    networks:
+      - my_network
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+
+networks:
+  my_network:
+
+volumes:
+  mongodb_data:
