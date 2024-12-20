@@ -1,5 +1,7 @@
 import streamlit as st
+
 from db_api import UsersAPI
+from utils import df, get_artists, get_universal_top_spotify_songs
 
 users_api = UsersAPI()
 
@@ -46,12 +48,39 @@ def login():
 
 
 def main():
-    st.write("session_state:", st.session_state)
-    if not st.session_state['user']:
-        st.warning("Please login")
-        st.switch_page(st.Page(login))
-    st.title("main page")
-    st.write("Welcome to the main page!")
+    # st.write("session_state:", st.session_state)
+    # if not st.session_state['user']:
+    #     st.warning("Please login")
+    #     st.switch_page(st.Page(login))
+
+    st.title("Main Page")
+    
+    # Artist Selection
+    options = st.multiselect("Select Artist", sorted(get_artists()))
+    st.write("You selected:", options)
+
+    if options:
+        # Filter DataFrame
+        filtered_df = df[df['artists'].fillna('Unknown').str.contains('|'.join(options))]
+        filtered_df = filtered_df.drop_duplicates(subset=['spotify_id'])
+
+        # Show DataFrame
+        st.write("Filtered Songs:")
+        st.dataframe(filtered_df[['name', 'artists', 'spotify_id']])
+
+        # Row Selection
+        selected_rows = st.multiselect(
+            "Select songs to extract Spotify IDs",
+            options=filtered_df.index,
+            format_func=lambda idx: f"{filtered_df.loc[idx, 'name']} (Spotify ID: {filtered_df.loc[idx, 'spotify_id']})"
+        )
+
+        # Extract Spotify IDs
+        if selected_rows:
+            selected_ids = filtered_df.loc[selected_rows, 'spotify_id'].tolist()
+            st.write("Selected Spotify IDs:", selected_ids)
+        else:
+            st.write("No songs selected.")
 
 
 pages = {
