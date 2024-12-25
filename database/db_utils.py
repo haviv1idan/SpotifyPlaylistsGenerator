@@ -16,9 +16,9 @@ def insert_user(name, password):
     print(f"User inserted with ID: {result.inserted_id}")
 
 
-def insert_song(name, spotify_id, artists):
+def insert_song(user: str, name: str, spotify_id: str, artists: list[str]):
     # Insert a song
-    song = {"name": name, "spotify_id": spotify_id, "artists": artists}
+    song = {"user": user, "name": name, "spotify_id": spotify_id, "artists": artists}
     result = songs_collection.insert_one(song)
     print(f"Song inserted with ID: {result.inserted_id}")
 
