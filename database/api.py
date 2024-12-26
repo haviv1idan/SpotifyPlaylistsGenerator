@@ -1,6 +1,8 @@
+from inspect import stack
+from json import dumps
+from logging import getLogger
 from typing import List
 
-from bson.objectid import ObjectId
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pymongo.synchronous.collection import Collection
@@ -11,22 +13,18 @@ from pymongo.synchronous.mongo_client import MongoClient
 class User(BaseModel):
     name: str
     password: str
-    playlists: dict[str, list[str]]  # List of playlist IDs
-
-
-class Song(BaseModel):
-    name: str
-    artists: List[str]
-    spotify_id: str
+    playlists: list[dict[str, list[str]]]  # List of playlist IDs
 
 
 class Playlist(BaseModel):
     name: str
-    users: List[str]  # List of user IDs
-    songs: List[str]  # List of song IDs
+    owner: str
+    shared_users: List[str] = []  # List of user IDs
+    songs: List[str] = []  # List of song IDs
 
 
 app = FastAPI()
+logger = getLogger('uvicorn.error')
 
 client: MongoClient = MongoClient("mongodb://localhost:27017/")
 db: Database = client["mydatabase"]
@@ -36,9 +34,36 @@ songs_collection: Collection = db["songs"]
 playlists_collection: Collection = db["playlists"]
 
 
-def serialize_object(obj):
+def format_log(message: dict):
+    filename = stack()[0].filename.split("/")[-1]
+    func = stack()[1].function
+    log = {"filename": filename, "function": func, "message": message}
+    return logger.info(log)
+
+
+def serialize_object(obj) -> dict:
     obj["_id"] = str(obj["_id"])
     return obj
+
+
+def serialize_user(user) -> dict:
+    user["_id"] = str(user["_id"])
+    user["playlists"] = [serialize_object(playlist) for playlist in user["playlists"]]
+    return user
+
+
+def get_all_playlists() -> list[dict]:
+    playlists = list(playlists_collection.find())
+    if not playlists:
+        return []
+    return [serialize_object(playlist) for playlist in playlists]
+
+
+def get_all_users():
+    users = list(users_collection.find())
+    if not users:
+        return []
+    return [serialize_user(user) for user in users]
 
 
 @app.get("/")
@@ -54,10 +79,9 @@ async def read_user_me():
 @app.get("/users")
 async def list_users():
     """Get all users."""
-    users = list(users_collection.find())
-    if not users:
-        return []
-    return [serialize_object(user) for user in users]
+    all_users = get_all_users()
+    format_log({"all users": all_users})
+    return all_users
 
 
 @app.post("/users/create")
@@ -73,6 +97,9 @@ async def create_user(user: User):
 
     # Return the created user
     new_user["_id"] = str(result.inserted_id)
+
+    format_log({"new user": new_user})
+    format_log({"updated users": get_all_users()})
     return {"message": "User created successfully", "user": new_user}
 
 
@@ -81,7 +108,7 @@ async def read_user(user_name: str):
     user = users_collection.find_one({"name": user_name})
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return serialize_object(user)
+    return serialize_user(user)
 
 
 @app.put("/users/{user_name}", response_model=User)
@@ -90,11 +117,14 @@ async def update_user_password(user_name: str, password: str):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
+    format_log({"user": user})
     user['password'] = password
     result = users_collection.update_one({"name": user_name}, {"$set": user})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
-    return serialize_object(user)
+
+    format_log({"updated users": get_all_users()})
+    return serialize_user(user)
 
 
 @app.delete("/users/{user_name}")
@@ -105,104 +135,56 @@ async def delete_user(user_name: str):
     return {"message": "User deleted successfully"}
 
 
-@app.get("/songs")
-async def get_all_songs():
-    songs = songs_collection.find()
-    if not songs:
-        return []
-    return [serialize_object(song) for song in songs]
-
-
-@app.post("/songs/create", response_model=Song)
-async def create_song(song: Song):
-    """Create a new user and store it in the MongoDB collection."""
-    # Check if user already exists
-    if users_collection.find_one({"spotify_id": song['spotify_id']}):
-        raise HTTPException(status_code=400, detail="User already exists")
-
-    # Insert the new user
-    new_song = song.model_dump()
-    users_collection.insert_one(new_song)
-
-    # Return the created user
-    return {"message": "User created successfully", "song": serialize_object(new_song)}
-
-
-@app.get("/songs/{song_spotify_id}", response_model=Song)
-async def read_song(song_spotify_id: str):
-    song = songs_collection.find_one({"spotify_id": song_spotify_id})
-    if song is None:
-        raise HTTPException(status_code=404, detail="Song not found")
-    return serialize_object(song)
-
-
-@app.put("/songs/{song_spotify_id}", response_model=Song)
-async def update_song(song_spotify_id: str, song: Song):
-    song_dict = song.model_dump()
-    result = songs_collection.update_one({"spotify_id": song_spotify_id}, {"$set": song_dict})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Song not found")
-    return serialize_object(song_dict)
-
-
-@app.delete("/songs/{song_spotify_id}")
-async def delete_song(song_spotify_id: str):
-    result = songs_collection.delete_one({"spotify_id": song_spotify_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Song not found")
-    return {"message": "Song deleted successfully"}
-
-
 @app.get("/my_playlists")
 async def get_my_playlists(user_name: str):
     user = users_collection.find_one({"name": user_name})
+    format_log({"user": user})
+    return [serialize_object(playlist) for playlist in user["playlists"]]
 
-    return user["playlists"]
 
-
-@app.post("/playlists/create", response_model=Playlist)
-async def create_playlist(playlist: Playlist, user_name: str):
+@app.post("/playlists/create")
+async def create_playlist(playlist_name: str, user_name: str):
     """Create a new playlist and store it in the MongoDB collection."""
-    # Check if user already exists
-    user: User = users_collection.find_one({"name": user_name})
-    if not user:
-        raise HTTPException(status_code=400, detail="User isn't exists")
-
-    # Check if playlist already exists
-    if playlist['name'] in user['playlists']:
+    playlist = playlists_collection.find_one({"name": playlist_name})
+    if playlist:
         raise HTTPException(status_code=400, detail="Playlist already exists")
 
-    # Insert the new user
-    new_playlist = playlist.model_dump()
-    user['playlists'] = {"playlists": user['playlists'].append(new_playlist)}
+    user = users_collection.find_one({"name": user_name})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_playlist = Playlist(name=playlist_name, owner=user_name).model_dump()
     playlists_collection.insert_one(new_playlist)
 
-    # Return the created user
-    return {"message": "Playlist created successfully", "playlist": serialize_object(new_playlist)}
+    all_playlists = dumps(get_all_playlists())
+    format_log({"all playlists": all_playlists})
+
+    if not user['playlists']:
+        user['playlists'] = []
+
+    user['playlists'].append(new_playlist)
+    users_collection.update_one({"name": user_name}, {"$set": user})
+
+    all_users = dumps(get_all_users())
+    format_log({"all users": all_users})
+
+    return {
+        "message": "Playlist created successfully",
+        "playlist": serialize_object(new_playlist),
+        "user": serialize_user(user)}
 
 
-@app.get("/playlists/{playlist_id}", response_model=Playlist)
-async def read_playlist(playlist_id: str):
-    playlist = playlists_collection.find_one({"_id": ObjectId(playlist_id)})
+@app.get("/playlists/{playlist_name}")
+async def read_playlist(playlist_name: str):
+    playlist = playlists_collection.find_one({"name": playlist_name})
     if playlist is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    playlist["_id"] = str(playlist["_id"])
-    return playlist
+    return serialize_object(playlist)
 
 
-@app.put("/playlists/{playlist_id}", response_model=Playlist)
-async def update_playlist(playlist_id: str, playlist: Playlist):
-    playlist_dict = playlist.dict()
-    result = playlists_collection.update_one({"_id": ObjectId(playlist_id)}, {"$set": playlist_dict})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Playlist not found")
-    playlist_dict["_id"] = playlist_id
-    return playlist_dict
-
-
-@app.delete("/playlists/{playlist_id}")
-async def delete_playlist(playlist_id: str):
-    result = playlists_collection.delete_one({"_id": ObjectId(playlist_id)})
+@app.delete("/playlists/{playlist_name}")
+async def delete_playlist(playlist_name: str):
+    result = playlists_collection.delete_one({"name": playlist_name})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Playlist not found")
     return {"message": "Playlist deleted successfully"}
