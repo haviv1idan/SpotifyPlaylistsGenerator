@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-WORKDIR /users
+WORKDIR /data
 
 # Install dependencies
 COPY requirements.txt requirements.txt
@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["fastapi", "dev", "user_api.py", "--port", "8000", "--host", "0.0.0.0"]
+CMD ["fastapi", "dev", "api.py", "--port", "8000", "--host", "0.0.0.0"]

@@ -26,7 +26,7 @@ class Playlist(BaseModel):
 app = FastAPI()
 logger = getLogger('uvicorn.error')
 
-client: MongoClient = MongoClient("mongodb://localhost:27017/")
+client: MongoClient = MongoClient("mongodb://mongodb:27017/")
 db: Database = client["mydatabase"]
 
 users_collection: Collection = db["users"]
@@ -48,6 +48,8 @@ def serialize_object(obj) -> dict:
 
 def serialize_user(user) -> dict:
     user["_id"] = str(user["_id"])
+    if user["playlists"] == []:
+        return user
     user["playlists"] = [serialize_object(playlist) for playlist in user["playlists"]]
     return user
 
@@ -61,6 +63,7 @@ def get_all_playlists() -> list[dict]:
 
 def get_all_users():
     users = list(users_collection.find())
+    format_log({"users": users})
     if not users:
         return []
     return [serialize_user(user) for user in users]
@@ -103,9 +106,10 @@ async def create_user(user: User):
     return {"message": "User created successfully", "user": new_user}
 
 
-@app.get("/users/{user_name}", response_model=User)
+@app.get("/users/{user_name}")
 async def read_user(user_name: str):
     user = users_collection.find_one({"name": user_name})
+    format_log({"user": user})
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return serialize_user(user)

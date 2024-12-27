@@ -11,8 +11,8 @@ services:
       - mongodb_data:/data/db
 
   fastapi_app:
-    build: .
-    container_name: users_api
+    build: ./database
+    container_name: fastapi_app
     networks:
       - my_network
     ports:
@@ -21,6 +21,16 @@ services:
       - mongodb
     environment:
       - MONGO_URI=mongodb://mongodb:27017
+
+  streamlit_app:
+    build: ./UI
+    container_name: streamlit_app
+    networks:
+      - my_network
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi_app
 
 networks:
   my_network:

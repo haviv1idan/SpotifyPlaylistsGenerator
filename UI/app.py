@@ -1,12 +1,12 @@
 import streamlit as st
-
 from db_api import UsersAPI
-from utils import df, get_artists, get_universal_top_spotify_songs
+from utils import df, get_artists
 
 users_api = UsersAPI()
 
 
 def create_account():
+    st.session_state['user'] = None
     st.title("Create Account")
     st.text("Please fill in your details to create an account.")
 
@@ -48,13 +48,8 @@ def login():
 
 
 def main():
-    # st.write("session_state:", st.session_state)
-    # if not st.session_state['user']:
-    #     st.warning("Please login")
-    #     st.switch_page(st.Page(login))
-
     st.title("Main Page")
-    
+
     # Artist Selection
     options = st.multiselect("Select Artist", sorted(get_artists()))
     st.write("You selected:", options)

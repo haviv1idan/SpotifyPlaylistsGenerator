@@ -3,7 +3,7 @@ import requests
 
 class UsersAPI:
 
-    def __init__(self, host: str = '127.0.0.1', port: int = 8000):
+    def __init__(self, host: str = 'fastapi_app', port: int = 8000):
         self.base_url = f'http://{host}:{port}'
         self.base_headers = {'Accept': 'application/json'}
 
